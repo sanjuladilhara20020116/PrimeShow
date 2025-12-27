@@ -1,16 +1,19 @@
+// db.js
 import mongoose from "mongoose";
 
-const connectDB = async () => {
-  try {
-    mongoose.connection.on("connected", () =>
-      console.log("Database connected")
-    );
+let cachedConnection = null;
 
-    await mongoose.connect(
-      `${process.env.MONGODB_URI}/primeshow`
-    );
+const connectDB = async () => {
+  if (cachedConnection) return cachedConnection;
+
+  try {
+    const conn = await mongoose.connect(`${process.env.MONGODB_URI}/primeshow`);
+    cachedConnection = conn;
+    console.log("Database connected");
+    return conn;
   } catch (error) {
     console.error("DB Error:", error.message);
+    throw error; // Throw so Inngest knows the function failed
   }
 };
 
