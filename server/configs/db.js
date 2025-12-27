@@ -1,14 +1,16 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const connectDB = async () => {
   try {
-    mongoose.connection.on('connected', () =>
-      console.log('Database connected')
+    mongoose.connection.on("connected", () =>
+      console.log("Database connected")
     );
 
-    await mongoose.connect(`${process.env.MONGODB_URI}/primeshow`);
+    await mongoose.connect(
+      `${process.env.MONGODB_URI}/primeshow`
+    );
   } catch (error) {
-    console.log(error.message);
+    console.error("DB Error:", error.message);
   }
 };
 
