@@ -2,14 +2,25 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
 import { Menu, Search, X, Ticket, ChevronDown } from "lucide-react";
-import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { user } = useUser();
-  const { openSignIn } = useClerk();
+  const [user, setUser] = useState(null); // Your own user state
+  const [authOpen, setAuthOpen] = useState(false); // Show login/signup dropdown
   const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    setUser(null);
+    setProfileOpen(false);
+  };
+
+  const handleDeleteAccount = () => {
+    // Call your backend API to delete user
+    setUser(null);
+    setProfileOpen(false);
+    alert("Account deleted");
+  };
 
   return (
     <div className="fixed top-0 left-0 z-50 w-full flex items-center justify-between px-6 md:px-16 lg:px-36 py-2">
@@ -46,7 +57,7 @@ const Navbar = () => {
 
         {!user ? (
           <button
-            onClick={openSignIn}
+            onClick={() => setAuthOpen(!authOpen)}
             className="px-4 py-1 sm:px-7 sm:py-2 bg-primary hover:bg-primary-dull transition rounded-full font-medium"
           >
             Login
@@ -58,12 +69,10 @@ const Navbar = () => {
               className="flex items-center gap-1 cursor-pointer"
               onClick={() => setProfileOpen(!profileOpen)}
             >
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "w-9 h-9",
-                  },
-                }}
+              <img
+                src={user.avatar || "/default-avatar.png"}
+                alt="avatar"
+                className="w-9 h-9 rounded-full"
               />
               <ChevronDown size={16} />
             </div>
@@ -82,8 +91,46 @@ const Navbar = () => {
                   <Ticket size={16} />
                   My Bookings
                 </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="w-full px-4 py-2 text-sm hover:bg-gray-700 text-white rounded-b-xl"
+                >
+                  Delete Account
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-2 text-sm hover:bg-gray-700 text-white rounded-b-xl"
+                >
+                  Sign Out
+                </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Auth Dropdown */}
+        {authOpen && !user && (
+          <div className="absolute right-0 mt-3 w-64 bg-black/90 backdrop-blur rounded-xl shadow-lg border border-gray-700 z-50 p-4">
+            <h3 className="text-white font-semibold mb-2">Sign In / Sign Up</h3>
+            {/* Replace with your login/signup forms */}
+            <button
+              onClick={() => {
+                setUser({ name: "John Doe", avatar: "/default-avatar.png" });
+                setAuthOpen(false);
+              }}
+              className="w-full py-2 bg-primary text-white rounded-lg mb-2"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => {
+                setUser({ name: "Jane Doe", avatar: "/default-avatar.png" });
+                setAuthOpen(false);
+              }}
+              className="w-full py-2 bg-secondary text-white rounded-lg"
+            >
+              Sign Up
+            </button>
           </div>
         )}
       </div>
