@@ -1,24 +1,26 @@
-import express from 'express';
-import cors from 'cors';
-import 'dotenv/config';
-import connectDB from './configs/db.js';
-import { clerkMiddleware } from '@clerk/express';
-import { serve } from "inngest/express";
-import { inngest, functions } from "./inngest/index.js"
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import connectDB from "./configs/db.js";
+import authRoutes from "./routes/auth.js";
 
 const app = express();
-const port = 3000;
+connectDB();
 
-await connectDB()
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
+app.use(express.json());
+app.use(cookieParser());
 
-// Middleware
-app.use(express.json())
-app.use(cors())
-app.use(clerkMiddleware())
+app.use("/api/auth", authRoutes);
 
+app.get("/", (req, res) => {
+  res.send("Server running");
+});
 
-// API Routes
-app.get('/', (req, res)=> res.send('Server is Live!'))
-app.use("/api/inngest", serve({ client: inngest, functions }))
-
-app.listen(port, ()=> console.log(`Server listening at http://localhost:${port}`));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
