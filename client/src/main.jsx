@@ -3,14 +3,24 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
-import axios from "axios";
+import { ClerkProvider } from '@clerk/clerk-react'
 
-// ✅ send cookies to backend
-axios.defaults.withCredentials = true;
-axios.defaults.baseURL = "http://localhost:5000";
+ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+  if (!PUBLISHABLE_KEY) {
+    throw new Error('Add your Clerk Publishable Key to the .env file')
+  }
+
+
 
 createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  
+
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ClerkProvider>
+    
+  
 );
