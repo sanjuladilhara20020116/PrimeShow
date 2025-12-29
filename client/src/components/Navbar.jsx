@@ -1,13 +1,13 @@
 import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
-import { Menu, Search, X, Ticket, ChevronDown } from "lucide-react";
-import { AppContext } from "../context/AppContext"; // Using the global context
+import { Menu, Search, X, Ticket, ChevronDown, User } from "lucide-react"; // Added User icon
+import { AppContext } from "../context/AppContext"; 
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { user, logout, deleteAccount } = useContext(AppContext);
+  const { user, logout } = useContext(AppContext);
   const navigate = useNavigate();
 
   const handleSignOut = () => {
@@ -62,11 +62,21 @@ const Navbar = () => {
               <div className="absolute right-0 mt-4 w-48 bg-[#1a1a1e] rounded-2xl shadow-2xl border border-white/10 z-50 overflow-hidden">
                 <button
                   onClick={() => { navigate("/my-bookings"); setProfileOpen(false); }}
-                  className="flex items-center gap-3 w-full px-4 py-4 text-sm hover:bg-white/5 transition"
+                  className="flex items-center gap-3 w-full px-4 py-4 text-sm hover:bg-white/5 transition border-b border-white/5"
                 >
                   <Ticket size={16} className="text-primary" />
                   My Bookings
                 </button>
+
+                {/* --- NEW VIEW PROFILE BUTTON --- */}
+                <button
+                  onClick={() => { navigate("/profile"); setProfileOpen(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-4 text-sm hover:bg-white/5 transition"
+                >
+                  <User size={16} className="text-primary" />
+                  View Profile
+                </button>
+
                 <button
                   onClick={handleSignOut}
                   className="w-full text-left px-4 py-4 text-sm text-red-500 hover:bg-red-500/5 transition border-t border-white/5"
@@ -98,6 +108,7 @@ const Navbar = () => {
         <Link onClick={() => setIsOpen(false)} to="/" className="text-2xl">Home</Link>
         <Link onClick={() => setIsOpen(false)} to="/movies" className="text-2xl">Movies</Link>
         <Link onClick={() => setIsOpen(false)} to="/favorite" className="text-2xl">Favorites</Link>
+        {user && <Link onClick={() => setIsOpen(false)} to="/profile" className="text-2xl">Profile</Link>}
         {!user && (
            <button onClick={() => { setIsOpen(false); navigate("/login"); }} className="px-10 py-3 bg-primary rounded-full">Login</button>
         )}

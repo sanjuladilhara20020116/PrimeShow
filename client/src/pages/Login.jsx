@@ -3,12 +3,13 @@ import { AppContext } from "../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react"; // Added for password visibility
 
 const Login = () => {
   const [state, setState] = useState("Login");
+  const [showPassword, setShowPassword] = useState(false); // New state for visibility
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   
-  // Destructure setUser directly to ensure we update the state if login() helper has different logic
   const { backendUrl, setUser } = useContext(AppContext);
   const navigate = useNavigate();
 
@@ -19,14 +20,10 @@ const Login = () => {
       const { data } = await axios.post(backendUrl + endpoint, formData);
 
       if (data.success) {
-        // 1. Update the Global State immediately
         setUser(data.user); 
-        
-        // 2. Save to localStorage so it persists on refresh
         localStorage.setItem("userData", JSON.stringify(data.user));
-        
         toast.success(`${state} Successful`);
-        navigate("/profile");
+        navigate("/");
       } else {
         toast.error(data.message);
       }
@@ -59,15 +56,27 @@ const Login = () => {
             className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 text-white outline-none focus:border-primary" 
             onChange={e => setFormData({...formData, email: e.target.value})} 
           />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            required 
-            className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 text-white outline-none focus:border-primary" 
-            onChange={e => setFormData({...formData, password: e.target.value})} 
-          />
+          
+          {/* Password Input with Eye Icon */}
+          <div className="relative">
+            <input 
+              type={showPassword ? "text" : "password"} 
+              placeholder="Password" 
+              required 
+              className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 text-white outline-none focus:border-primary pr-12" 
+              onChange={e => setFormData({...formData, password: e.target.value})} 
+            />
+            <button 
+              type="button" // Important: set to button to prevent form submission
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-black hover:text-gray-600 transition-colors"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+            
           <button type="submit" className="w-full py-4 bg-primary hover:bg-primary-dull text-white rounded-2xl font-bold text-lg transition-all active:scale-95 shadow-lg shadow-primary/20">
-            {state}
+            {state} 
           </button>
         </form>
 
