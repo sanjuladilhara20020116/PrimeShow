@@ -11,6 +11,7 @@ import MovieDetails from "./pages/MovieDetails";
 import SeatLayout from "./pages/SeatLayout";
 import MyBookings from "./pages/MyBookings";
 import Favorite from "./pages/Favorite";
+import Login from "./pages/Login"; // New import for Auth
 
 // Admin
 import Layout from "./pages/admin/Layout";
@@ -19,11 +20,17 @@ import AddShows from "./pages/admin/AddShows";
 import ListShows from "./pages/admin/ListShows";
 import ListBookings from "./pages/admin/ListBookings";
 
+// Context
+import { AppContextProvider } from "./context/AppContext"; // New import for Context
+
+import Profile from "./pages/Profile";
+
 const App = () => {
   const isAdminRoute = useLocation().pathname.startsWith("/admin");
 
   return (
-    <>
+    // Wrapping the entire app in AppContextProvider to provide user state globally
+    <AppContextProvider>
       <Toaster />
 
       {!isAdminRoute && <Navbar />}
@@ -36,6 +43,10 @@ const App = () => {
         <Route path="/movies/:id/:date" element={<SeatLayout />} />
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/favorite" element={<Favorite />} />
+        
+        {/* New Authentication Route for Login/Sign Up */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<Layout />}>
@@ -47,7 +58,7 @@ const App = () => {
       </Routes>
 
       {!isAdminRoute && <Footer />}
-    </>
+    </AppContextProvider>
   );
 };
 
