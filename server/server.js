@@ -58,4 +58,46 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+
+// Update Profile Route
+app.post('/api/user/update', async (req, res) => {
+    try {
+        const { userId, name, email, image, password } = req.body;
+        
+        const updateData = { name, email, image };
+
+        // If a new password is provided, hash it
+        if (password) {
+            updateData.password = await bcrypt.hash(password, 10);
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId, 
+            updateData, 
+            { new: true }
+        ).select("-password"); // Exclude password from the response
+
+        if (!updatedUser) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        res.json({ success: true, user: updatedUser });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+});
+
+// Delete Account Route
+app.delete('/api/user/delete/:id', async (req, res) => {
+    try {
+        const deletedUser = await User.findByIdAndDelete(req.params.id);
+        if (!deletedUser) {
+            return res.json({ success: false, message: "User not found" });
+        }
+        res.json({ success: true, message: "Account deleted" });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+});
+
 app.listen(port, () => console.log(`Server listening at http://localhost:${port}`));
