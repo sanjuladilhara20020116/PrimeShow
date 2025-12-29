@@ -23,6 +23,8 @@ import ListBookings from "./pages/admin/ListBookings";
 // Context
 import { AppContextProvider } from "./context/AppContext"; // New import for Context
 
+import Profile from "./pages/Profile";
+
 const App = () => {
   const isAdminRoute = useLocation().pathname.startsWith("/admin");
 
@@ -44,6 +46,7 @@ const App = () => {
         
         {/* New Authentication Route for Login/Sign Up */}
         <Route path="/login" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<Layout />}>
