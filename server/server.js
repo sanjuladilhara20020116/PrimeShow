@@ -1,10 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+import bcrypt from 'bcryptjs';
 import connectDB from './configs/db.js';
-import { clerkMiddleware } from '@clerk/express';
-import { serve } from "inngest/express";
-import { inngest, functions } from "./inngest/index.js"
+import User from './models/User.js';
 
 const app = express();
 const port = 3000;
@@ -14,11 +13,49 @@ await connectDB()
 // Middleware
 app.use(express.json())
 app.use(cors())
-app.use(clerkMiddleware())
-
 
 // API Routes
-app.get('/', (req, res)=> res.send('Server is Live!'))
-app.use("/api/inngest", serve({ client: inngest, functions }))
+app.get('/', (req, res) => res.send('Server is Live!'))
 
-app.listen(port, ()=> console.log(`Server listening at http://localhost:${port}`));
+// --- MANUAL AUTH ROUTES ---
+
+// Register Route
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
+        const exists = await User.findOne({ email });
+        
+        if (exists) return res.json({ success: false, message: "User already exists" });
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await User.create({ 
+            name, 
+            email, 
+            password: hashedPassword, 
+            image: `https://avatar.iran.liara.run/username?username=${name}` 
+        });
+
+        res.json({ success: true, user: { _id: newUser._id, name: newUser.name, email: newUser.email, image: newUser.image } });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+});
+
+// Login Route
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) return res.json({ success: false, message: "User not found" });
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.json({ success: false, message: "Invalid credentials" });
+
+        res.json({ success: true, user: { _id: user._id, name: user.name, email: user.email, image: user.image } });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+});
+
+app.listen(port, () => console.log(`Server listening at http://localhost:${port}`));
