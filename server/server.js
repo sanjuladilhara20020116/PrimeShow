@@ -4,6 +4,10 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import connectDB from './configs/db.js';
 import User from './models/User.js';
+import showRouter from './routes/showRoutes.js';
+import bookingRouter from './routes/bookingRoutes.js';
+import adminRouter from './routes/adminRouter.js';
+import userRouter from './routes/userRoutes.js';
 
 const app = express();
 const port = 3000;
@@ -16,6 +20,11 @@ app.use(cors())
 
 // API Routes
 app.get('/', (req, res) => res.send('Server is Live!'))
+app.use('/api/show',showRouter)
+app.use('/api/booking',bookingRouter)
+app.use('/api/admin',adminRouter)
+app.use('/api/user',userRouter)
+
 
 // --- MANUAL AUTH ROUTES ---
 
