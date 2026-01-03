@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AppContext } from "../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -8,7 +8,7 @@ import { Camera, Trash2, Ticket, Save, LogOut, Eye, EyeOff } from "lucide-react"
 const Profile = () => {
   const { user, setUser, logout, backendUrl } = useContext(AppContext);
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // New state for visibility
+  const [showPassword, setShowPassword] = useState(false); 
   
   const [name, setName] = useState(user?.name);
   const [email, setEmail] = useState(user?.email);
@@ -17,7 +17,28 @@ const Profile = () => {
   
   const navigate = useNavigate();
 
+  // Keep local state in sync if global user object changes
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setEmail(user.email);
+      setImage(user.image);
+    }
+  }, [user]);
+
   if (!user) return <div className="pt-40 text-center text-white">Please Login...</div>;
+
+  // Function to convert file to Base64 so it can be stored in MongoDB
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result); // This creates a permanent Base64 string
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleUpdate = async () => {
     try {
@@ -26,12 +47,13 @@ const Profile = () => {
         updateData.password = password;
       }
 
-      // Ensure your backend receives the correct payload structure
       const { data } = await axios.post(`${backendUrl}/api/user/update`, updateData);
       
       if (data.success) {
+        // Update global state and localStorage with the fresh data from server
         setUser(data.user);
         localStorage.setItem('userData', JSON.stringify(data.user));
+        
         setIsEditing(false);
         setPassword(""); 
         setShowPassword(false);
@@ -40,7 +62,6 @@ const Profile = () => {
         toast.error(data.message || "Update failed");
       }
     } catch (error) {
-      // Improved error logging to see exactly why it fails in the console
       console.error("Update Error:", error);
       toast.error(error.response?.data?.message || "Server error: Update failed");
     }
@@ -62,11 +83,20 @@ const Profile = () => {
     <div className="min-h-screen pt-50 pb-20 flex justify-center px-6 bg-[#09090b]">
       <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-[3rem] p-8 h-fit backdrop-blur-md">
         <div className="relative w-32 h-32 mx-auto mb-8 group">
-          <img src={image || "https://avatar.iran.liara.run/public"} className="w-full h-full rounded-full object-cover border-4 border-primary p-1" alt="Profile" />
+          <img 
+            src={image || "https://avatar.iran.liara.run/public"} 
+            className="w-full h-full rounded-full object-cover border-4 border-primary p-1" 
+            alt="Profile" 
+          />
           {isEditing && (
             <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition">
               <Camera className="text-white" />
-              <input type="file" className="hidden" onChange={(e) => setImage(URL.createObjectURL(e.target.files[0]))} />
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="image/*"
+                onChange={handleImageChange} 
+              />
             </label>
           )}
         </div>
@@ -74,12 +104,22 @@ const Profile = () => {
         <div className="space-y-4">
           <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
             <p className="text-xs text-gray-500 uppercase font-bold mb-1">Full Name</p>
-            <input disabled={!isEditing} className="w-full bg-transparent text-white outline-none disabled:text-gray-400" value={name} onChange={e => setName(e.target.value)} />
+            <input 
+              disabled={!isEditing} 
+              className="w-full bg-transparent text-white outline-none disabled:text-gray-400" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+            />
           </div>
 
           <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
             <p className="text-xs text-gray-500 uppercase font-bold mb-1">Email</p>
-            <input disabled={!isEditing} className="w-full bg-transparent text-white outline-none disabled:text-gray-400" value={email} onChange={e => setEmail(e.target.value)} />
+            <input 
+              disabled={!isEditing} 
+              className="w-full bg-transparent text-white outline-none disabled:text-gray-400" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+            />
           </div>
 
           {isEditing && (

@@ -10,22 +10,20 @@ export const AppContext = createContext();
 export const AppProvider = ({ children }) => {
   const backendUrl = import.meta.env.VITE_BASE_URL;
 
-  // 1. Initialize user first from localStorage
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('userData');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  // 2. Initialize isAdmin AFTER user is defined
   const [isAdmin, setIsAdmin] = useState(user?.role === 'admin');
-  
   const [shows, setShows] = useState([]);
   const [favoriteMovies, setFavoriteMovies] = useState([]);
 
-  const location = useLocation();
+  // FIXED: Changed VITE_TMDB_BASE_URL to VITE_TMDB_IMAGE_BASE_URL to match your .env
+  const image_base_url = import.meta.env.VITE_TMDB_IMAGE_BASE_URL;
+
   const navigate = useNavigate();
 
-  // 3. Keep isAdmin and localStorage in sync whenever user data changes
   useEffect(() => {
     if (user) {
       localStorage.setItem('userData', JSON.stringify(user));
@@ -60,6 +58,7 @@ export const AppProvider = ({ children }) => {
     isAdmin, setIsAdmin,
     shows, setShows,
     favoriteMovies, setFavoriteMovies,
+    image_base_url,
     backendUrl,
     logout
   };
