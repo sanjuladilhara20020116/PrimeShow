@@ -1,6 +1,17 @@
 // API to check if user is admin
 export const isAdmin = async (req, res) => {
-    res.json({success: true, isAdmin: true})
+    try {
+        const { userid } = req.headers; // Or however you pass the ID
+        const user = await User.findById(userid);
+        
+        if (user && user.role === 'admin') {
+            res.json({ success: true, isAdmin: true });
+        } else {
+            res.json({ success: false, isAdmin: false, message: "Access Denied" });
+        }
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
 }
 
 // API to get dashboard data
