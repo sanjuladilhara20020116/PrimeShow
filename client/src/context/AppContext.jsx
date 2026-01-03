@@ -23,8 +23,10 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       localStorage.setItem('userData', JSON.stringify(user));
+      fetchIsAdmin(); // Automatically check admin status when user state is set
     } else {
       localStorage.removeItem('userData');
+      setIsAdmin(false);
     }
   }, [user]);
 

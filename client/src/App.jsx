@@ -35,7 +35,7 @@ const App = () => {
     <>
       <Toaster />
 
-      {/* Show Navbar and Footer only on client-side routes */}
+      {/* Show Navbar only on client-side routes */}
       {!isAdminRoute && <Navbar />}
 
       <Routes>
@@ -64,6 +64,7 @@ const App = () => {
         </Route>
       </Routes>
 
+      {/* Show Footer only on client-side routes */}
       {!isAdminRoute && <Footer />}
     </>
   );

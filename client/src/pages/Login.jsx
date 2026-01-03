@@ -3,11 +3,11 @@ import { AppContext } from "../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import { Eye, EyeOff } from "lucide-react"; // Added for password visibility
+import { Eye, EyeOff } from "lucide-react"; 
 
 const Login = () => {
   const [state, setState] = useState("Login");
-  const [showPassword, setShowPassword] = useState(false); // New state for visibility
+  const [showPassword, setShowPassword] = useState(false); 
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   
   const { backendUrl, setUser } = useContext(AppContext);
@@ -23,7 +23,13 @@ const Login = () => {
         setUser(data.user); 
         localStorage.setItem("userData", JSON.stringify(data.user));
         toast.success(`${state} Successful`);
-        navigate("/");
+        
+        // Redirect to admin dashboard if the user is the admin
+        if (data.user.email === "admin@primeshow.com") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       } else {
         toast.error(data.message);
       }
@@ -57,7 +63,6 @@ const Login = () => {
             onChange={e => setFormData({...formData, email: e.target.value})} 
           />
           
-          {/* Password Input with Eye Icon */}
           <div className="relative">
             <input 
               type={showPassword ? "text" : "password"} 
@@ -67,7 +72,7 @@ const Login = () => {
               onChange={e => setFormData({...formData, password: e.target.value})} 
             />
             <button 
-              type="button" // Important: set to button to prevent form submission
+              type="button" 
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-black hover:text-gray-600 transition-colors"
             >
