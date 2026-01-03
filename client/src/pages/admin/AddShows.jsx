@@ -4,30 +4,28 @@ import { Check, StarIcon, Trash2 } from 'lucide-react';
 import { kConverter } from '../../lib/kConverter';
 import { useAppContext } from '../../context/AppContext';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
 const AddShows = () => {
-
-  const { user, image_base_url } = useAppContext();
+  const { image_base_url, backendUrl } = useAppContext();
 
   const currency = import.meta.env.VITE_CURRENCY;
-  const backendUrl = import.meta.env.VITE_BASE_URL;
 
   const [nowPlayingMovies, setNowPlayingMovies] = useState([]);
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [dateTimeSelection, setDateTimeSelection] = useState({});
   const [dateTimeInput, setDateTimeInput] = useState('');
   const [showPrice, setShowPrice] = useState('');
-
-  
+  const [addingShow, setaddingShow] = useState(false);
 
   const fetchNowPlayingMovies = async () => {
     try {
-        const { data } = await axios.get(`${backendUrl}/api/show/now-playing`);
-        if(data.success){
-            setNowPlayingMovies(data.movies);
-        }
+      const { data } = await axios.get(`${backendUrl}/api/show/now-playing`);
+      if (data.success) {
+        setNowPlayingMovies(data.movies);
+      }
     } catch (error) {
-        console.error('Error fetching movies:', error);
+      console.error('Error fetching movies:', error);
     }
   };
 
@@ -67,32 +65,46 @@ const AddShows = () => {
     });
   };
 
-  const handleAddShow = () => {
-    if (!selectedMovie) {
-      alert('Please select a movie');
-      return;
-    }
-    if (!showPrice || showPrice <= 0) {
-      alert('Please enter a valid show price');
-      return;
-    }
-    if (Object.keys(dateTimeSelection).length === 0) {
-      alert('Please add at least one show time');
-      return;
-    }
+  const handleAddShow = async () => {
+    if (!selectedMovie) return toast.error('Please select a movie');
+    if (!showPrice || showPrice <= 0) return toast.error('Please enter a price');
+    if (Object.keys(dateTimeSelection).length === 0) return toast.error('Add at least one time');
 
-    const payload = {
-      movieId: selectedMovie,
-      price: showPrice,
-      schedule: dateTimeSelection,
-    };
+    setaddingShow(true);
 
-    console.log('Show Added:', payload);
-    alert('Show added successfully!');
+    try {
+      // Transforming UI state to match backend's array-based "showsInput"
+      const showsInput = Object.entries(dateTimeSelection).map(([date, times]) => ({
+        date,
+        time: times
+      }));
+
+      const payload = {
+        movieId: selectedMovie,
+        showPrice: Number(showPrice),
+        showsInput: showsInput
+      };
+
+      const { data } = await axios.post(`${backendUrl}/api/show/add`, payload);
+
+      if (data.success) {
+        toast.success('Show added successfully!');
+        setSelectedMovie(null);
+        setShowPrice('');
+        setDateTimeSelection({});
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error('Error adding show:', error);
+      toast.error(error.response?.data?.message || 'Server Error');
+    } finally {
+      setaddingShow(false);
+    }
   };
 
   if (nowPlayingMovies.length === 0) {
-    return <p className="mt-10 text-center text-white">Loading shows...</p>;
+    return <p className="mt-10 text-center text-white">Loading movies...</p>;
   }
 
   return (
@@ -129,8 +141,7 @@ const AddShows = () => {
                   <Check className="w-4 h-4 text-white" />
                 </div>
               )}
-              <p className="font-medium truncate text-white">{movie.title}</p>
-              <p className="text-gray-400 text-sm">{movie.release_date}</p>
+              <p className="font-medium truncate text-white mt-1">{movie.title}</p>
             </div>
           ))}
         </div>
@@ -142,11 +153,9 @@ const AddShows = () => {
           <p className="text-gray-400 text-sm">{currency}</p>
           <input
             type="number"
-            min={0}
             value={showPrice}
             onChange={(e) => setShowPrice(e.target.value)}
-            placeholder="Enter show price"
-            className="outline-none bg-transparent text-white"
+            className="outline-none bg-transparent text-white w-32"
           />
         </div>
       </div>
@@ -159,7 +168,7 @@ const AddShows = () => {
             value={dateTimeInput}
             min={minDateTime}
             onChange={(e) => setDateTimeInput(e.target.value)}
-            className="outline-none rounded-md bg-transparent text-white"
+            className="outline-none bg-transparent text-white"
           />
           <button
             onClick={handleDateTimeAdd}
@@ -172,19 +181,19 @@ const AddShows = () => {
 
       {Object.keys(dateTimeSelection).length > 0 && (
         <div className="mt-6 text-white">
-          <h2 className="mb-2 font-medium">Selected Date-Time</h2>
+          <h2 className="mb-2 font-medium">Selected Slots</h2>
           <ul className="space-y-3">
             {Object.entries(dateTimeSelection).map(([date, times]) => (
               <li key={date}>
-                <div className="font-medium">{date}</div>
-                <div className="flex flex-wrap gap-2 mt-1 text-sm">
+                <div className="font-medium text-sm text-gray-400">{date}</div>
+                <div className="flex flex-wrap gap-2 mt-1">
                   {times.map((time) => (
-                    <div key={time} className="border border-primary px-2 py-1 flex items-center rounded">
+                    <div key={time} className="border border-primary px-2 py-1 flex items-center rounded text-sm">
                       <span>{time}</span>
                       <Trash2
                         onClick={() => handleRemoveTime(date, time)}
-                        size={15}
-                        className="ml-2 text-red-500 hover:text-red-700 cursor-pointer"
+                        size={14}
+                        className="ml-2 text-red-500 cursor-pointer"
                       />
                     </div>
                   ))}
@@ -197,14 +206,10 @@ const AddShows = () => {
 
       <button
         onClick={handleAddShow}
-        disabled={!selectedMovie || !showPrice || Object.keys(dateTimeSelection).length === 0}
-        className={`px-8 py-2 mt-6 rounded-md transition-all ${
-          !selectedMovie || !showPrice || Object.keys(dateTimeSelection).length === 0
-            ? 'bg-gray-500 cursor-not-allowed'
-            : 'bg-primary text-white hover:bg-primary/90'
-        }`}
+        disabled={addingShow}
+        className={`px-8 py-2 mt-8 rounded-md transition-all bg-primary text-white ${addingShow ? 'opacity-50' : 'hover:scale-105'}`}
       >
-        Add Show
+        {addingShow ? 'Processing...' : 'Add Show'}
       </button>
     </>
   );
