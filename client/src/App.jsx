@@ -11,7 +11,8 @@ import MovieDetails from "./pages/MovieDetails";
 import SeatLayout from "./pages/SeatLayout";
 import MyBookings from "./pages/MyBookings";
 import Favorite from "./pages/Favorite";
-import Login from "./pages/Login"; // New import for Auth
+import Login from "./pages/Login"; 
+import Profile from "./pages/Profile";
 
 // Admin
 import Layout from "./pages/admin/Layout";
@@ -21,43 +22,41 @@ import ListShows from "./pages/admin/ListShows";
 import ListBookings from "./pages/admin/ListBookings";
 
 // Context
-import { AppContextProvider, useAppContext } from "./context/AppContext.jsx"; // New import for Context
-
-import Profile from "./pages/Profile";
-import { SignIn } from "@clerk/clerk-react";
+import { useAppContext } from "./context/AppContext.jsx";
 
 const App = () => {
-  const isAdminRoute = useLocation().pathname.startsWith("/admin");
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
-  const {user} = useAppContext
+  // Get user and isAdmin status from context
+  const { user, isAdmin } = useAppContext(); 
 
   return (
-    // Wrapping the entire app in AppContextProvider to provide user state globally
-    <AppContextProvider>
+    <>
       <Toaster />
 
+      {/* Show Navbar and Footer only on client-side routes */}
       {!isAdminRoute && <Navbar />}
 
       <Routes>
-        {/* User Routes */}
+        {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/movies" element={<Movies />} />
         <Route path="/movies/:id" element={<MovieDetails />} />
         <Route path="/movies/:id/:date" element={<SeatLayout />} />
-        <Route path="/my-bookings" element={<MyBookings />} />
-        <Route path="/favorite" element={<Favorite />} />
         
-        {/* New Authentication Route for Login/Sign Up */}
+        {/* Authentication Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/profile" element={<Profile />} />
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={user? <Layout />: (
-          <div className="min-h-screen flex justify-center items-center">
-            <SignIn fallbackRedirectUrl={'/admin'} />
+        {/* Protected User Routes */}
+        <Route path="/profile" element={user ? <Profile /> : <Login />} />
+        <Route path="/my-bookings" element={user ? <MyBookings /> : <Login />} />
+        <Route path="/favorite" element={user ? <Favorite /> : <Login />} />
 
-          </div>
-        )}>
+        {/* Admin Routes: 
+          Requires both an active user session AND admin privileges.
+        */}
+        <Route path="/admin" element={user && isAdmin ? <Layout /> : <Login />}>
           <Route index element={<Dashboard />} />
           <Route path="add-shows" element={<AddShows />} />
           <Route path="list-shows" element={<ListShows />} />
@@ -66,7 +65,7 @@ const App = () => {
       </Routes>
 
       {!isAdminRoute && <Footer />}
-    </AppContextProvider>
+    </>
   );
 };
 

@@ -6,7 +6,7 @@ import Movie from "../models/Movie.js";
 export const getUserBookings = async (req, res) => {
     try {
         // Updated: Get userId from body (matching your login/update pattern)
-        const { userId } = req.body; 
+        const userId = req.headers.userid; 
 
         const bookings = await Booking.find({ user: userId }).populate({
             path: "show",
@@ -52,7 +52,7 @@ export const updateFavorite = async (req, res) => {
 // 3. Get Full Favorite Movies List
 export const getFavorites = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const userId = req.headers.userid;
 
         const user = await User.findById(userId);
         if (!user) {

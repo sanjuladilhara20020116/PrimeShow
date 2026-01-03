@@ -1,110 +1,74 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
-import axios  from "axios";
-import {useAuth, useUser } from '@clerk/clerk-react';
-import {useLocation, useNavigate} from 'react-router-dom';
+import axios from "axios";
+import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from "react-hot-toast";
 
-axios.defaults.baseURL = import.meta.env.VITE_BASE_URL
+axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 
-export const AppContext = createContext()
+export const AppContext = createContext();
 
-export const AppProvider = ({ children })=>{
-
-  const[isAdmin, setIsAdmin] = useState(false)
-  const[shows, setShows] = useState([])
-  const[favoriteMovies, setfavoriteMovies] = useState([])
-
-  const {user} = useUser()
-  const {getToken} = useAuth()
-  const {location} = useLocation()
-  const {navigate} = useNavigate()
-
+export const AppProvider = ({ children }) => {
+  const backendUrl = import.meta.env.VITE_BASE_URL;
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [shows, setShows] = useState([]);
+  const [favoriteMovies, setFavoriteMovies] = useState([]);
   
-  
+  // Get user from localStorage on load
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('userData')) || null);
 
-  const fetchIsAdmin = async ()=>{
-    try{
-      const {data}=await axios.get('/api/admin/is-admin' , {headers:
-        {Authorization: `Bearer ${await getToken()} `}})
-        setIsAdmin(Date.isAdmin)
+  const location = useLocation();
+  const navigate = useNavigate();
 
-        if(!data.isAdmin && location.pathame.startsWith('/admin')){
-          navigate('/')
-          toast.error('You are not authorized to access admin dashboard')
-
-        }
-    }catch (error){
-      console.error(error)
-    }
-  }
-
-
-  const fetchShows = async () =>{
-    try{
-      const {data} = await axios.get('/api/show/all')
-      if(data.success){
-        setShows(data.shows)
-      }else{
-        toast.error(data.message)
-      }
-    }catch (error){
-      console.error(error)
-    }
-  }
-
-
-  const fetchFavoriteMovies = async () => {
-  try {
-    const { data } = await axios.get('/api/user/favorites', {
-      headers: {
-        Authorization: `Bearer ${await getToken()}`
-      }
-    })
-
-    if (data.success) {
-      setFavoriteMovies(data.movies)
+  // Persist user data
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('userData', JSON.stringify(user));
     } else {
-      toast.error(data.message)
+      localStorage.removeItem('userData');
     }
-  } catch (error) {
-    console.error(error)
+  }, [user]);
+
+  const fetchIsAdmin = async () => {
+    try {
+      // Check if user is admin when logged in
+      const { data } = await axios.get('/api/admin/is-admin');
+      setIsAdmin(data.isAdmin);
+
+      if (!data.isAdmin && location.pathname.startsWith('/admin')) {
+        navigate('/');
+        toast.error('Not authorized');
+      }
+    } catch (error) {
+      console.error("Admin check failed", error);
+    }
   }
+
+  const logout = () => {
+    setUser(null);
+    setIsAdmin(false);
+    localStorage.removeItem('userData');
+    navigate('/login');
+    toast.success("Logged out");
+  };
+
+  const value = {
+    user, setUser,
+    isAdmin, setIsAdmin,
+    fetchIsAdmin,
+    shows, setShows,
+    favoriteMovies, setFavoriteMovies,
+    backendUrl,
+    logout
+  }
+
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  )
 }
 
-  useEffect(()=>{
-    
-      fetchIsShows()
-      fetchFavoriteMovies()
-    
-  },[])
-
-  useEffect(()=>{
-    if(user){
-      fetchIsAdmin()
-      
-    }
-  },[user])
-
-    const value = {
-      axios,
-      fetchIsAdmin,
-      user, getToken, navigate, isAdmin, shows,
-      favoriteMovies, fetchFavoriteMovies
-    
-    
-    
-    }
-
-    return (
-        <AppContext.Provider value={value}>
-            { children }
-        </AppContext.Provider>
-    )
-}
-
-export const useAppContext = ()=> useContext(AppContext)
-
-
+export const useAppContext = () => useContext(AppContext);
 
 
 
