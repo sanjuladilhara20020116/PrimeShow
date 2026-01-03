@@ -21,12 +21,15 @@ import ListShows from "./pages/admin/ListShows";
 import ListBookings from "./pages/admin/ListBookings";
 
 // Context
-import { AppContextProvider } from "./context/AppContext"; // New import for Context
+import { AppContextProvider, useAppContext } from "./context/AppContext.jsx"; // New import for Context
 
 import Profile from "./pages/Profile";
+import { SignIn } from "@clerk/clerk-react";
 
 const App = () => {
   const isAdminRoute = useLocation().pathname.startsWith("/admin");
+
+  const {user} = useAppContext
 
   return (
     // Wrapping the entire app in AppContextProvider to provide user state globally
@@ -49,7 +52,12 @@ const App = () => {
         <Route path="/profile" element={<Profile />} />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<Layout />}>
+        <Route path="/admin" element={user? <Layout />: (
+          <div className="min-h-screen flex justify-center items-center">
+            <SignIn fallbackRedirectUrl={'/admin'} />
+
+          </div>
+        )}>
           <Route index element={<Dashboard />} />
           <Route path="add-shows" element={<AddShows />} />
           <Route path="list-shows" element={<ListShows />} />
