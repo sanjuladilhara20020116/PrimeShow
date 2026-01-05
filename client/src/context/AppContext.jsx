@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from "react-hot-toast";
 
 axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
@@ -9,6 +9,7 @@ export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const backendUrl = import.meta.env.VITE_BASE_URL;
+  const navigate = useNavigate();
 
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('userData');
@@ -19,11 +20,11 @@ export const AppProvider = ({ children }) => {
   const [shows, setShows] = useState([]);
   const [favoriteMovies, setFavoriteMovies] = useState([]);
 
-  // FIXED: Changed VITE_TMDB_BASE_URL to VITE_TMDB_IMAGE_BASE_URL to match your .env
   const image_base_url = import.meta.env.VITE_TMDB_IMAGE_BASE_URL;
 
-  const navigate = useNavigate();
-
+  /* =====================
+     Persist user & role
+  ===================== */
   useEffect(() => {
     if (user) {
       localStorage.setItem('userData', JSON.stringify(user));
@@ -34,12 +35,19 @@ export const AppProvider = ({ children }) => {
     }
   }, [user]);
 
+  /* =====================
+     Logout
+  ===================== */
   const logout = () => {
     setUser(null);
+    setFavoriteMovies([]);
     navigate('/login');
     toast.success("Logged out successfully");
   };
 
+  /* =====================
+     Fetch all shows
+  ===================== */
   const fetchShows = async () => {
     try {
       const { data } = await axios.get('/api/show/all');
@@ -53,6 +61,29 @@ export const AppProvider = ({ children }) => {
     fetchShows();
   }, []);
 
+  /* =====================
+     Get Auth Token
+  ===================== */
+  const getToken = async () => {
+    return user?.token || null;
+  };
+
+  /* =====================
+     Fetch Favorite Movies
+  ===================== */
+  const fetchFavoriteMovies = async () => {
+    if (!user) return;
+    try {
+      const token = await getToken();
+      const { data } = await axios.get("/api/user/favorites", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.success) setFavoriteMovies(data.favorites);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const value = {
     user, setUser,
     isAdmin, setIsAdmin,
@@ -60,7 +91,10 @@ export const AppProvider = ({ children }) => {
     favoriteMovies, setFavoriteMovies,
     image_base_url,
     backendUrl,
-    logout
+    logout,
+    getToken,
+    fetchFavoriteMovies,
+    axios
   };
 
   return (
