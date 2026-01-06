@@ -2,13 +2,15 @@ import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
 import { Menu, Search, X, Ticket, ChevronDown, User } from "lucide-react"; // Added User icon
-import { AppContext } from "../context/AppContext"; 
+import { AppContext, useAppContext } from "../context/AppContext"; 
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, logout } = useContext(AppContext);
   const navigate = useNavigate();
+
+  const {favoriteMovies} = useAppContext()
 
   const handleSignOut = () => {
     logout();
@@ -30,7 +32,7 @@ const Navbar = () => {
         <Link to="/movies" className="hover:text-primary transition-colors">Movies</Link>
         <Link to="/" className="hover:text-primary transition-colors">Theaters</Link>
         <Link to="/" className="hover:text-primary transition-colors">Releases</Link>
-        <Link to="/favorite" className="hover:text-primary transition-colors">Favorites</Link>
+        {favoriteMovies.length > 0 && <Link to="/favorite" className="hover:text-primary transition-colors">Favorites</Link>}
       </div>
 
       {/* Right: Search and Auth */}
@@ -107,7 +109,7 @@ const Navbar = () => {
         />
         <Link onClick={() => setIsOpen(false)} to="/" className="text-2xl">Home</Link>
         <Link onClick={() => setIsOpen(false)} to="/movies" className="text-2xl">Movies</Link>
-        <Link onClick={() => setIsOpen(false)} to="/favorite" className="text-2xl">Favorites</Link>
+        {favoriteMovies.length > 0 && <Link onClick={() => {scrollTo(0,0); setIsOpen(false)}} to='/favorite'>Favorites</Link>}
         {user && <Link onClick={() => setIsOpen(false)} to="/profile" className="text-2xl">Profile</Link>}
         {!user && (
            <button onClick={() => { setIsOpen(false); navigate("/login"); }} className="px-10 py-3 bg-primary rounded-full">Login</button>

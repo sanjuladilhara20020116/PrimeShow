@@ -5,7 +5,11 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    image: { type: String, default: "https://avatar.iran.liara.run/public" } // Default avatar
+    image: { type: String, default: "https://avatar.iran.liara.run/public" },
+    role: { type: String, default: "user" }, // Added role field
+    // Added field
+    favorites: [{ type: String, ref: 'Movie' }] 
+
 });
 
 const User = mongoose.model('User', userSchema);
