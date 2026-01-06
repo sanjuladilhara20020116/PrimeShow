@@ -44,6 +44,8 @@ const App = () => {
         {/* User Protected Routes */}
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/my-bookings" element={user ? <MyBookings /> : <Navigate to="/login" />} />
+        
+
         <Route path="/favorite" element={user ? <Favorite /> : <Navigate to="/login" />} />
 
         {/* Admin Protected Routes - Dynamic based on Role */}

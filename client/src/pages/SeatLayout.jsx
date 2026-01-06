@@ -97,8 +97,7 @@ const bookTickets = async () =>{
     selectedTime.showId, selectedSeats}, {headers: { Authorization: `Bearer ${await getToken()}` }});
 
     if(data.success){
-      toast.success(data.message)
-      navigate('/my-bookings')
+      window.location.href = data.url;
     }else{
       toast.error(data.message)
     }
