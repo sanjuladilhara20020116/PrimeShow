@@ -9,152 +9,127 @@ import bookingRouter from './routes/bookingRoutes.js';
 import adminRouter from './routes/adminRouter.js';
 import userRouter from './routes/userRoutes.js';
 import { stripeWebhooks } from './controllers/stripeWebhooks.js';
-import { releaseExpiredBookings } from './utils/bookingCleanup.js';
 
 const app = express();
 const port = 3000;
 
-await connectDB();
+await connectDB()
 
-/* ================= STRIPE WEBHOOK ================= */
-// ⚠️ MUST be before express.json
-app.use(
-  '/api/stripe',
-  express.raw({ type: 'application/json' }),
-  stripeWebhooks
-);
+//stripe webhooks route
+app.use('/api/stripe', express.raw({type: 'application/json'}),stripeWebhooks)
 
-/* ================= MIDDLEWARE ================= */
+// Middleware
+// Locate these lines in your server.js and update them:
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
-app.use(cors());
+app.use(express.json())
+app.use(cors())
 
-/* ================= ROUTES ================= */
-app.get('/', (req, res) => res.send('Server is Live!'));
+// API Routes
+app.get('/', (req, res) => res.send('Server is Live!'))
+app.use('/api/show',showRouter)
+app.use('/api/booking',bookingRouter)
+app.use('/api/admin',adminRouter)
+app.use('/api/user',userRouter)
 
-app.use('/api/show', showRouter);
-app.use('/api/booking', bookingRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/user', userRouter);
+// --- MANUAL AUTH ROUTES ---
 
-/* ================= AUTH ROUTES ================= */
-
-// Register
+// Register Route
 app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
+        const exists = await User.findOne({ email });
+        
+        if (exists) return res.json({ success: false, message: "User already exists" });
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res.json({ success: false, message: 'User already exists' });
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await User.create({ 
+            name, 
+            email, 
+            password: hashedPassword, 
+            role: 'user', // Default role
+            image: `https://avatar.iran.liara.run/username?username=${name}` 
+        });
+
+        res.json({ 
+            success: true, 
+            user: { 
+                _id: newUser._id, 
+                name: newUser.name, 
+                email: newUser.email, 
+                image: newUser.image,
+                role: newUser.role // Added role to response
+            } 
+        });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: 'user',
-      image: `https://avatar.iran.liara.run/username?username=${name}`
-    });
-
-    res.json({
-      success: true,
-      user: {
-        _id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        image: newUser.image,
-        role: newUser.role
-      }
-    });
-  } catch (error) {
-    res.json({ success: false, message: error.message });
-  }
 });
 
-// Login
+// Login Route
 app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.json({ success: false, message: 'User not found' });
+        if (!user) return res.json({ success: false, message: "User not found" });
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.json({ success: false, message: "Invalid credentials" });
+
+        res.json({ 
+            success: true, 
+            user: { 
+                _id: user._id, 
+                name: user.name, 
+                email: user.email, 
+                image: user.image,
+                role: user.role // Added role to response
+            } 
+        });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.json({ success: false, message: 'Invalid credentials' });
-    }
-
-    res.json({
-      success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    res.json({ success: false, message: error.message });
-  }
 });
 
-// Update profile
+// Update Profile Route
 app.post('/api/user/update', async (req, res) => {
-  try {
-    const { userId, name, email, image, password } = req.body;
+    try {
+        const { userId, name, email, image, password } = req.body;
+        
+        const updateData = { name, email, image };
 
-    const updateData = { name, email, image };
+        if (password) {
+            updateData.password = await bcrypt.hash(password, 10);
+        }
 
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
+        const updatedUser = await User.findByIdAndUpdate(
+            userId, 
+            updateData, 
+            { new: true }
+        ).select("-password"); 
+
+        if (!updatedUser) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        res.json({ success: true, user: updatedUser }); // updatedUser includes role
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true }
-    ).select('-password');
-
-    if (!updatedUser) {
-      return res.json({ success: false, message: 'User not found' });
-    }
-
-    res.json({ success: true, user: updatedUser });
-  } catch (error) {
-    res.json({ success: false, message: error.message });
-  }
 });
 
-// Delete account
+// Delete Account Route
 app.delete('/api/user/delete/:id', async (req, res) => {
-  try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
-
-    if (!deletedUser) {
-      return res.json({ success: false, message: 'User not found' });
+    try {
+        const deletedUser = await User.findByIdAndDelete(req.params.id);
+        if (!deletedUser) {
+            return res.json({ success: false, message: "User not found" });
+        }
+        res.json({ success: true, message: "Account deleted" });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
-
-    res.json({ success: true, message: 'Account deleted' });
-  } catch (error) {
-    res.json({ success: false, message: error.message });
-  }
 });
 
-/* ================= AUTO RELEASE JOB ================= */
-// runs every 1 minute
-setInterval(() => {
-  releaseExpiredBookings().catch(err =>
-    console.error('Booking cleanup error:', err)
-  );
-}, 60 * 1000);
-
-/* ================= SERVER ================= */
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
-});
+app.listen(port, () => console.log(`Server listening at http://localhost:${port}`));
