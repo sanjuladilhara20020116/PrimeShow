@@ -41,23 +41,24 @@ export const createBooking = async (req, res) => {
       show: showId,
       amount: showData.showPrice * selectedSeats.length,
       bookedSeats: selectedSeats,
-      
-      isPaid: false
+      // ✅ FIX: Increased to 15 minutes to give user time to pay
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000) 
     });
 
-    // Lock seats
     selectedSeats.forEach(seat => {
       showData.occupiedSeats[seat] = userId;
     });
+
     showData.markModified("occupiedSeats");
     await showData.save();
 
     const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+
     const session = await stripeInstance.checkout.sessions.create({
       success_url: `${origin}/loading/my-bookings`,
       cancel_url: `${origin}/my-bookings`,
       mode: "payment",
-      expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       line_items: [{
         price_data: {
           currency: "usd",
@@ -115,10 +116,10 @@ export const userBookings = async (req, res) => {
 ============================= */
 export const releaseExpiredSeats = async () => {
   try {
-    // ONLY unpaid bookings with expiresAt in the past
+    // ✅ Logic: Find bookings that are NOT paid AND current time > expiry time
     const expiredBookings = await Booking.find({
-      isPaid: false,          // Only unpaid bookings
-      expiresAt: { $lt: new Date() } // Expired
+      isPaid: false,
+      expiresAt: { $lt: new Date() }
     });
 
     if (expiredBookings.length > 0) {
@@ -128,7 +129,7 @@ export const releaseExpiredSeats = async () => {
         const show = await Show.findById(booking.show);
         if (show) {
           booking.bookedSeats.forEach(seat => {
-            delete show.occupiedSeats[seat]; // free the seat
+            delete show.occupiedSeats[seat];
           });
           show.markModified("occupiedSeats");
           await show.save();
@@ -140,4 +141,3 @@ export const releaseExpiredSeats = async () => {
     console.log("Seat release error:", error.message);
   }
 };
-

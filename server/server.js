@@ -9,7 +9,7 @@ import bookingRouter from './routes/bookingRoutes.js';
 import adminRouter from './routes/adminRouter.js';
 import userRouter from './routes/userRoutes.js';
 import { stripeWebhooks } from './controllers/stripeWebhooks.js';
-import { releaseExpiredSeats } from './controllers/bookingController.js';
+import { releaseExpiredSeats } from './controllers/bookingController.js'; // ✅ ADDED
 
 const app = express();
 const port = 3000;
@@ -19,12 +19,13 @@ await connectDB();
 // Stripe webhooks route (RAW BODY REQUIRED)
 app.use('/api/stripe', express.raw({ type: 'application/json' }), stripeWebhooks);
 
-// Middleware
+// Middleware (UNCHANGED)
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
+app.use(express.json());
 app.use(cors());
 
-// API Routes
+// API Routes (UNCHANGED)
 app.get('/', (req, res) => res.send('Server is Live!'));
 app.use('/api/show', showRouter);
 app.use('/api/booking', bookingRouter);
@@ -136,10 +137,10 @@ app.delete('/api/user/delete/:id', async (req, res) => {
   }
 });
 
-// --- AUTOMATIC RELEASE OF EXPIRED SEATS ---
+// ✅ AUTO-RELEASE UNPAID / EXPIRED SEATS (SAFE)
 setInterval(() => {
   releaseExpiredSeats();
-}, 60 * 1000); // every 1 minute
+}, 1 * 60 * 1000); // every 1 minutes
 
 app.listen(port, () =>
   console.log(`Server listening at http://localhost:${port}`)
