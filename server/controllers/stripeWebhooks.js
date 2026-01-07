@@ -1,53 +1,31 @@
 import stripe from "stripe";
 import Booking from "../models/Booking.js";
 
-export const stripeWebhooks = async (request, response) => {
-    const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
-    const sig = request.headers["stripe-signature"];
+const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
 
-    let event;
+export const stripeWebhooks = async (req, res) => {
+  const sig = req.headers["stripe-signature"];
+  let event;
 
-    try {
-        event = stripeInstance.webhooks.constructEvent(
-            request.body, 
-            sig, 
-            process.env.STRIPE_WEBHOOK_SECRET
-        )
-    } catch (error) {
-        return response.status(400).send(`Webhook Error: ${error.message}`);
-    }
+  try {
+    event = stripeInstance.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-    try {
-      switch (event.type) {
-        case "payment_intent.succeeded": {
-            const paymentIntent = event.data.object;
-            const sessionList = await stripeInstance.checkout.sessions.list({
-                payment_intent: paymentIntent.id
-            })
+  // When payment is successful
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const bookingId = session.metadata.bookingId;
 
-            const session = sessionList.data[0];
-            const {bookingId} = session.metadata;
+    // ✅ FIX: Mark booking as paid so releaseExpiredSeats() ignores it
+    await Booking.findByIdAndUpdate(bookingId, { isPaid: true });
+    console.log(`✅ Booking ${bookingId} paid and secured.`);
+  }
 
-            await Booking.findByIdAndUpdate(bookingId, {
-              isPaid: true,
-              paymentLink: ""
-            })
-
-            break;
-
-        }
-
-        default:
-            console.log('Unhandled event type:', event.type)
-    }
-    response.json({received: true})
-} catch (err) {
-    console.error("Webhook processing error:", err);
-    response.status(500).send("Internal Server Error");
-}
-      
-    
-
-
-}
-
+  res.json({ received: true });
+};
