@@ -1,44 +1,45 @@
 import React, { useState, useEffect } from "react";
-import { dummyBookingData } from "../assets/assets";
 import BlurCircle from '../components/BlurCircle';
-import Loading from '../components/Loading';
-import timeFormat from '../lib/timeFormat';
-import {useAppContext} from '../context/AppContext';
+import { useAppContext } from '../context/AppContext';
 import { Link } from "react-router-dom";
-
 
 const MyBookings = () => {
   const currency = import.meta.env.VITE_CURRENCY;
 
-  const {shows, axios, getToken, user, image_base_url} = useAppContext()
-
+  const { axios, user, image_base_url } = useAppContext();
 
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const getMyBookings = async () => {
-  try {
-    const {data} = await axios.get('/api/booking/user-bookings', {
-      headers: { Authorization: `Bearer ${await getToken()}` }
-    })
-    if (data.success) {
-      setBookings(data.bookings)
-    }
+    try {
+      if (!user) return;
 
-  } catch (error) {
-    console.log(error)
-  }
-  setIsLoading(false)
-}
+      const { data } = await axios.get('/api/booking/user-bookings', {
+        headers: {
+          "x-user-id": user._id // ✅ pass userId in header
+        }
+      });
+
+      if (data.success) {
+        setBookings(data.bookings);
+      } else {
+        console.log("Error fetching bookings:", data.message);
+      }
+    } catch (error) {
+      console.log("User bookings error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if(user){
     getMyBookings();
-    }
   }, [user]);
 
   // simple runtime formatter (minutes → hrs mins)
   const timeFormat = (minutes) => {
+    if (!minutes) return "N/A";
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hrs}h ${mins}m`;
@@ -46,6 +47,7 @@ const MyBookings = () => {
 
   // format show date
   const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
     const date = new Date(dateStr);
     return date.toLocaleString("en-US", {
       day: "2-digit",
@@ -65,7 +67,7 @@ const MyBookings = () => {
     );
   }
 
-  if (bookings.length === 0) {
+  if (!bookings.length) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
         <p className="text-gray-400">No bookings found.</p>
@@ -75,9 +77,6 @@ const MyBookings = () => {
 
   return (
     <div className="relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]">
-      
-      
-
       <h1 className="text-lg font-semibold mb-4">My Bookings</h1>
 
       {bookings.map((item, index) => (
@@ -91,8 +90,7 @@ const MyBookings = () => {
             <img
               src={image_base_url + item.show.movie.poster_path}
               alt={item.show.movie.title}
-              className="md:max-w-45 aspect-video h-auto
-                         object-cover object-bottom rounded"
+              className="md:max-w-45 aspect-video h-auto object-cover object-bottom rounded"
             />
 
             <div className="flex flex-col p-4 flex-1">
@@ -103,7 +101,7 @@ const MyBookings = () => {
               </p>
 
               <p className="text-gray-400 text-sm mt-auto">
-                Show Time: {formatDate(item.show.showDateTime)}
+                Show Time: {formatDate(item.show.showDateTime || item.show.showDate)}
               </p>
             </div>
           </div>
@@ -114,9 +112,12 @@ const MyBookings = () => {
                 {currency}
                 {item.amount}
               </p>
-              {!item.isPaid && (
-                <Link to={item.paymentLink} className='bg-primary px-5 py-1 mb-3 text-sm rounded-full font-small cursor-pointer '>
-                  Pay 
+              {!item.isPaid && item.paymentLink && (
+                <Link
+                  to={item.paymentLink}
+                  className="bg-primary px-5 py-1 mb-3 text-sm rounded-full font-small cursor-pointer"
+                >
+                  Pay
                 </Link>
               )}
             </div>
