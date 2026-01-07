@@ -47,13 +47,16 @@ export const createBooking = async (req, res) => {
       bookedSeats: selectedSeats,
       isPaid: false
     });
-
-    // Lock seats temporarily (isPaid=false)
-    selectedSeats.forEach(seat => {
-      showData.occupiedSeats[seat] = { user: userId, isPaid: false };
-    });
-    showData.markModified("occupiedSeats");
-    await showData.save();
+// Lock seats with a "locked" status
+selectedSeats.forEach(seat => {
+  showData.occupiedSeats[seat] = {
+    userId: userId,
+    status: "locked", //  Add status
+    bookingId: booking._id.toString() //  Track which booking locked it
+  };
+});
+showData.markModified("occupiedSeats");
+await showData.save();
 
     // Stripe Checkout
     const session = await stripe.checkout.sessions.create({
@@ -87,7 +90,8 @@ export const createBooking = async (req, res) => {
 export const getOccupiedSeats = async (req, res) => {
   try {
     const showData = await Show.findById(req.params.showId);
-    res.json({ success: true, occupiedSeats: Object.keys(showData.occupiedSeats) });
+    // Send the whole object so the frontend knows who is "locked" vs "confirmed"
+    res.json({ success: true, occupiedSeats: showData.occupiedSeats });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

@@ -14,10 +14,11 @@ const SeatLayout = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [selectedTime, setSelectedTime] = useState(null);
   const [show, setShow] = useState(null);
-  const [occupiedSeats, setOccupiedSeats] = useState([]);
+  // ✅ Changed state to an object to store seat status { "A1": { status: "confirmed" } }
+  const [occupiedSeats, setOccupiedSeats] = useState({}); 
 
   const navigate = useNavigate();
-  const { user } = useAppContext(); // user info
+  const { user } = useAppContext();
 
   const getShow = async () => {
     try {
@@ -37,8 +38,9 @@ const SeatLayout = () => {
       return toast("You can only select 10 seats");
     }
 
-    if (occupiedSeats.includes(seatId)) {
-      return toast("This seat is already booked");
+    // ✅ Logic change: Check for existence in the object regardless of status
+    if (occupiedSeats[seatId]) {
+      return toast("This seat is already booked or held");
     }
 
     setSelectedSeats(prev =>
@@ -49,25 +51,33 @@ const SeatLayout = () => {
   };
 
   const renderSeats = (row, count = 9) => (
-    <div key={row} className="flex gap-2 mt-2">
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {Array.from({ length: count }, (_, i) => {
-          const seatId = `${row}${i + 1}`;
-          return (
-            <button
-              key={seatId}
-              onClick={() => handleSeatClick(seatId)}
-              className={`h-8 w-8 rounded border border-primary/60 cursor-pointer
-                ${selectedSeats.includes(seatId) && "bg-primary text-white"}
-                ${occupiedSeats.includes(seatId) && "opacity-50"}`}
-            >
-              {seatId}
-            </button>
-          );
-        })}
-      </div>
+  <div key={row} className="flex gap-2 mt-2">
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {Array.from({ length: count }, (_, i) => {
+        const seatId = `${row}${i + 1}`;
+        const seatData = occupiedSeats[seatId]; // This is now an object {status: "..."}
+        
+        const isPaid = seatData?.status === "confirmed";
+        const isPending = seatData?.status === "locked";
+        const isSelected = selectedSeats.includes(seatId);
+
+        return (
+          <button
+            key={seatId}
+            onClick={() => handleSeatClick(seatId)}
+            disabled={isPaid || isPending}
+            className={`h-8 w-8 rounded border text-[10px] transition-colors
+              ${isPaid ? "bg-red-600 border-none text-white" : "border-primary/60"}
+              ${isSelected ? "bg-gray-500 text-white border-none" : ""}
+              ${isPending ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+          >
+            {seatId}
+          </button>
+        );
+      })}
     </div>
-  );
+  </div>
+);
 
   const getOccupiedSeats = async () => {
     try {
@@ -75,7 +85,8 @@ const SeatLayout = () => {
 
       const { data } = await axios.get(`/api/booking/seats/${selectedTime.showId}`);
       if (data.success) {
-        setOccupiedSeats(data.occupiedSeats);
+        // ✅ We now store the raw object instead of just the keys array
+        setOccupiedSeats(data.occupiedSeats || {});
       } else {
         toast.error(data.message);
       }
@@ -98,7 +109,7 @@ const SeatLayout = () => {
         },
         {
           headers: {
-            "x-user-id": user._id // ✅ send userId in header
+            "x-user-id": user._id
           }
         }
       );
@@ -166,6 +177,13 @@ const SeatLayout = () => {
         <h1 className="text-2xl font-semibold mb-4">Select Your Seat</h1>
         <img src={assets.screenImage} alt="screen" />
         <p className="text-gray-400 text-sm mb-6">SCREEN SIDE</p>
+
+        {/* ✅ Visual Legend so users understand the difference */}
+        <div className="flex gap-6 mb-8 text-[10px] uppercase tracking-widest text-gray-400">
+           <div className="flex items-center gap-2"><div className="w-3 h-3 bg-gray-600 rounded"></div> Pending</div>
+           <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-600 rounded"></div> Paid</div>
+           <div className="flex items-center gap-2"><div className="w-3 h-3 bg-primary rounded"></div> Selected</div>
+        </div>
 
         <div className="flex flex-col items-center mt-10 text-xs text-gray-300">
           <div className="grid grid-cols-2 md:grid-cols-1 gap-8 md:gap-2 mb-6">
