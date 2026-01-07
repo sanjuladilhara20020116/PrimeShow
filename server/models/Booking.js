@@ -5,10 +5,16 @@ const bookingSchema = new mongoose.Schema({
   show: { type: String, required: true, ref: "Show" },
   amount: { type: Number, required: true },
   bookedSeats: { type: Array, required: true },
+
   isPaid: { type: Boolean, default: false },
   paymentLink: { type: String },
+
+  expiresAt: { type: Date, required: true },
+  status: {
+    type: String,
+    enum: ["pending", "paid", "expired"],
+    default: "pending"
+  }
 }, { timestamps: true });
 
-const Booking = mongoose.model("Booking", bookingSchema);
-
-export default Booking;
+export default mongoose.model("Booking", bookingSchema);
