@@ -4,55 +4,25 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import connectDB from './configs/db.js';
 import User from './models/User.js';
-import Booking from './models/Booking.js';
-import Show from './models/Show.js';
 import showRouter from './routes/showRoutes.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import adminRouter from './routes/adminRouter.js';
 import userRouter from './routes/userRoutes.js';
 import { stripeWebhooks } from './controllers/stripeWebhooks.js';
-import { releaseSeat } from './controllers/bookingController.js';
 
 const app = express();
 const port = 3000;
 
 await connectDB()
 
-// NEW: Background job to clean up expired bookings every 5 minutes
-const startCleanupJob = () => {
-  setInterval(async () => {
-    try {
-      const thirtyMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-
-      // Find unpaid bookings older than 2 minutes
-      const expiredBookings = await Booking.find({
-        isPaid: false,
-        createdAt: { $lt: thirtyMinutesAgo }
-      });
-
-      for (const booking of expiredBookings) {
-        await releaseSeat(booking._id.toString());
-      }
-
-      if (expiredBookings.length > 0) {
-        console.log(`✓ Cleanup job: Released ${expiredBookings.length} expired bookings`);
-      }
-    } catch (error) {
-      console.error('Cleanup job error:', error.message);
-    }
-  }, 5 * 60 * 1000); // Run every 5 minutes
-};
-
-// Start the cleanup job
-startCleanupJob();
-console.log('✓ Auto-cleanup job started (runs every 2 minutes)');
-
 //stripe webhooks route
 app.use('/api/stripe', express.raw({type: 'application/json'}),stripeWebhooks)
 
 // Middleware
+// Locate these lines in your server.js and update them:
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
+app.use(express.json())
 app.use(cors())
 
 // API Routes
@@ -77,7 +47,7 @@ app.post('/api/auth/register', async (req, res) => {
             name, 
             email, 
             password: hashedPassword, 
-            role: 'user',
+            role: 'user', // Default role
             image: `https://avatar.iran.liara.run/username?username=${name}` 
         });
 
@@ -88,7 +58,7 @@ app.post('/api/auth/register', async (req, res) => {
                 name: newUser.name, 
                 email: newUser.email, 
                 image: newUser.image,
-                role: newUser.role
+                role: newUser.role // Added role to response
             } 
         });
     } catch (error) {
@@ -114,7 +84,7 @@ app.post('/api/auth/login', async (req, res) => {
                 name: user.name, 
                 email: user.email, 
                 image: user.image,
-                role: user.role
+                role: user.role // Added role to response
             } 
         });
     } catch (error) {
@@ -143,7 +113,7 @@ app.post('/api/user/update', async (req, res) => {
             return res.json({ success: false, message: "User not found" });
         }
 
-        res.json({ success: true, user: updatedUser });
+        res.json({ success: true, user: updatedUser }); // updatedUser includes role
     } catch (error) {
         res.json({ success: false, message: error.message });
     }

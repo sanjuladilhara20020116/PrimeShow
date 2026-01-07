@@ -20,65 +20,6 @@ const checkSeatAvailability = async(showId, selectedSeats)=>{
   }
 }
 
-// NEW: Function to release seats for expired/unpaid bookings
-export const releaseSeat = async (bookingId) => {
-  try {
-    const booking = await Booking.findById(bookingId);
-    
-    if (!booking || booking.isPaid) {
-      return; // Don't release if booking doesn't exist or is already paid
-    }
-
-    const show = await Show.findById(booking.show);
-    
-    if (!show) {
-      return;
-    }
-
-    // Release each booked seat
-    booking.bookedSeats.forEach(seat => {
-      if (show.occupiedSeats[seat] === booking.user) {
-        delete show.occupiedSeats[seat];
-      }
-    });
-
-    show.markModified('occupiedSeats');
-    await show.save();
-
-    console.log(`Seats released for booking: ${bookingId}`);
-  } catch (error) {
-    console.error('Error releasing seats:', error.message);
-  }
-};
-
-// NEW: Check and release expired bookings
-export const checkExpiredBookings = async (req, res) => {
-  try {
-    const thirtyMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-
-    // Find unpaid bookings older than 30 minutes
-    const expiredBookings = await Booking.find({
-      isPaid: false,
-      createdAt: { $lt: thirtyMinutesAgo }
-    });
-
-    let releasedCount = 0;
-
-    for (const booking of expiredBookings) {
-      await releaseSeat(booking._id.toString());
-      releasedCount++;
-    }
-
-    res.json({ 
-      success: true, 
-      message: `Released ${releasedCount} expired bookings` 
-    });
-  } catch (error) {
-    console.log(error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
-
 export const createBooking=async(req,res)=>{
   try{
     //const {userId} = req.auth();
@@ -138,17 +79,14 @@ export const createBooking=async(req,res)=>{
     metadata: {
     bookingId: booking._id.toString()
     },
-    expires_at: Math.floor(Date.now() / 1000) + 2 * 60, // Expires in 2 minutes
+    expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // Expires in 30 minutes
 
   })
 
   booking.paymentLink = session.url
   await booking.save()
 
-  // NEW: Schedule auto-release after 2 minutes (1 minute buffer after Stripe expiry)
-  setTimeout(async () => {
-    await releaseSeat(booking._id.toString());
-  }, 2 * 60 * 1000);
+
 
   res.json({success: true, url: session.url})
 
