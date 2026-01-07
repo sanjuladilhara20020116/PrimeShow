@@ -1,6 +1,5 @@
 import stripe from "stripe";
 import Booking from "../models/Booking.js";
-import Show from "../models/Show.js"; // Added import
 
 export const stripeWebhooks = async (request, response) => {
     const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
@@ -19,53 +18,36 @@ export const stripeWebhooks = async (request, response) => {
     }
 
     try {
-        switch (event.type) {
-            // SUCCESS: User paid for the booking
-            case "checkout.session.completed": {
-                const session = event.data.object;
-                const { bookingId } = session.metadata;
+      switch (event.type) {
+        case "payment_intent.succeeded": {
+            const paymentIntent = event.data.object;
+            const sessionList = await stripeInstance.checkout.sessions.list({
+                payment_intent: paymentIntent.id
+            })
 
-                await Booking.findByIdAndUpdate(bookingId, {
-                    isPaid: true,
-                    paymentLink: ""
-                });
-                break;
-            }
+            const session = sessionList.data[0];
+            const {bookingId} = session.metadata;
 
-            // FAILURE/EXPIRY: Release seats if session expires or payment fails
-            case "checkout.session.expired": {
-                const session = event.data.object;
-                const { bookingId } = session.metadata;
+            await Booking.findByIdAndUpdate(bookingId, {
+              isPaid: true,
+              paymentLink: ""
+            })
 
-                const booking = await Booking.findById(bookingId);
+            break;
 
-                if (booking && !booking.isPaid) {
-                    const show = await Show.findById(booking.show);
-                    
-                    if (show) {
-                        // Remove seats from occupiedSeats object
-                        booking.bookedSeats.forEach((seat) => {
-                            delete show.occupiedSeats[seat];
-                        });
-
-                        show.markModified('occupiedSeats');
-                        await show.save();
-                    }
-
-                    // Delete the unpaid booking record
-                    await Booking.findByIdAndDelete(bookingId);
-                }
-                break;
-            }
-
-            default:
-                console.log('Unhandled event type:', event.type);
         }
-        
-        response.json({ received: true });
 
-    } catch (err) {
-        console.error("Webhook processing error:", err);
-        response.status(500).send("Internal Server Error");
+        default:
+            console.log('Unhandled event type:', event.type)
     }
+    response.json({received: true})
+} catch (err) {
+    console.error("Webhook processing error:", err);
+    response.status(500).send("Internal Server Error");
 }
+      
+    
+
+
+}
+
