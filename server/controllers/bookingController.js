@@ -1,150 +1,137 @@
 import Booking from "../models/Booking.js";
-import Show from "../models/Show.js";
-import stripe from "stripe";
+import Show from "../models/Show.js"
+import stripe from 'stripe'
 
-// Map to track temporarily locked seats: { showId: { seatId: { userId, expiresAt } } }
-const lockedSeats = {};
+//functon to check availability of selected seates for a movie
+const checkSeatAvailability = async(showId, selectedSeats)=>{
+  try{
+    const showData=await Show.findById(showId)
+    if(!showData) return false;
 
-// Check seat availability (paid + locked)
-const checkSeatAvailability = async (showId, selectedSeats, userId) => {
-  try {
-    const showData = await Show.findById(showId);
-    if (!showData) return false;
+    const occupiedSeats=showData.occupiedSeats;
 
-    const occupiedSeats = showData.occupiedSeats || {};
+    const isAnySeatTaken=selectedSeats.some(seat=>occupiedSeats[seat]);
 
-    // Check if any seat is already paid/booked
-    const isOccupied = selectedSeats.some(seat => occupiedSeats[seat]);
-    if (isOccupied) return false;
+    return !isAnySeatTaken;
 
-    // Check locked seats
-    if (lockedSeats[showId]) {
-      const now = Date.now();
-      const isLocked = selectedSeats.some(seat => {
-        const lock = lockedSeats[showId][seat];
-        return lock && lock.expiresAt > now && lock.userId !== userId;
-      });
-      if (isLocked) return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error(error.message);
+  }catch(error){
+    console.log(error.message);
     return false;
   }
-};
+}
 
-// Lock selected seats for 1 min
-const lockSeats = (showId, seats, userId) => {
-  if (!lockedSeats[showId]) lockedSeats[showId] = {};
-  const expiresAt = Date.now() + 60 * 1000; // 1 min
-  seats.forEach(seat => {
-    lockedSeats[showId][seat] = { userId, expiresAt };
-    console.log(`[Toast] Seat ${seat} locked for user ${userId}`);
-  });
-
-  // Auto-release seats after 1 min if not paid
-  setTimeout(() => {
-    seats.forEach(seat => {
-      if (
-        lockedSeats[showId]?.[seat] &&
-        lockedSeats[showId][seat].userId === userId
-      ) {
-        delete lockedSeats[showId][seat];
-        console.log(`[Toast] Seat ${seat} auto-released (unpaid)`);
-      }
-    });
-  }, 60 * 1000);
-};
-
-// Create Booking
-export const createBooking = async (req, res) => {
-  try {
-    const { userId } = req; // from auth middleware
+export const createBooking=async(req,res)=>{
+  try{
+    //const {userId} = req.auth();
+    const { userId } = req; 
     const { showId, selectedSeats } = req.body;
-    const { origin } = req.headers;
+    const {origin} = req.headers;
 
-    const isAvailable = await checkSeatAvailability(showId, selectedSeats, userId);
-    if (!isAvailable) {
-      return res.json({ success: false, message: "Selected seats are not available" });
+
+    //check if the set is available for the selected show
+    const isAvailable =await checkSeatAvailability(showId,selectedSeats)
+
+    if(!isAvailable){
+      return res.json({success:false,message:"Selected seats are not available."})
     }
 
-    // Lock seats
-    lockSeats(showId, selectedSeats, userId);
+    //get the show details
+    const showData = await Show.findById(showId).populate('movie');
 
-    const showData = await Show.findById(showId).populate("movie");
-
+    //create a new booking
     const booking = await Booking.create({
-      user: userId,
+      user: userId ,
       show: showId,
       amount: showData.showPrice * selectedSeats.length,
       bookedSeats: selectedSeats
-    });
+      
+    })
 
-    // Stripe checkout
-    const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
-    const session = await stripeInstance.checkout.sessions.create({
-      success_url: `${origin}/loading/my-bookings`,
-      cancel_url: `${origin}/my-bookings`,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: showData.movie.title },
-            unit_amount: Math.floor(booking.amount) * 100
-          },
-          quantity: 1
-        }
-      ],
-      mode: "payment",
-      metadata: { bookingId: booking._id.toString() },
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60
-    });
+    selectedSeats.map((seat) => {
+      showData.occupiedSeats[seat] = userId;
+    })
 
-    booking.paymentLink = session.url;
-    await booking.save();
+    showData.markModified('occupiedSeats');
 
-    res.json({ success: true, url: session.url });
-  } catch (error) {
-    console.error(error.message);
-    res.json({ success: false, message: error.message });
+    await showData.save();
+
+
+    // Stripe Gateway Initialize
+     const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY)
+
+    // Creating line items to for Stripe
+    const line_items = [{
+    price_data: {
+        currency: 'usd',
+        product_data: {
+            name: showData.movie.title
+        },
+        unit_amount: Math.floor(booking.amount) * 100
+    },
+    quantity: 1
+  }]
+
+  const session = await stripeInstance.checkout.sessions.create({
+    success_url: `${origin}/loading/my-bookings`,
+    cancel_url: `${origin}/my-bookings`,
+    line_items: line_items,
+    mode: 'payment',
+    metadata: {
+    bookingId: booking._id.toString()
+    },
+    expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // Expires in 30 minutes
+
+  })
+
+  booking.paymentLink = session.url
+  await booking.save()
+
+
+
+  res.json({success: true, url: session.url})
+
+
+
+
+  } catch (error){
+    console.log(error.message);
+    res.json({success: false, message: error.message})
+
   }
-};
+}
 
-// Get Occupied Seats (paid + locked)
+
 export const getOccupiedSeats = async (req, res) => {
-  try {
-    const { showId } = req.params;
-    const showData = await Show.findById(showId);
+    try {
 
-    // Paid/occupied seats
-    const occupiedSeats = Object.keys(showData.occupiedSeats || {});
+        const {showId} = req.params;
+        const showData = await Show.findById(showId)
 
-    // Add temporarily locked seats
-    const now = Date.now();
-    const locked = lockedSeats[showId]
-      ? Object.entries(lockedSeats[showId])
-          .filter(([_, lock]) => lock.expiresAt > now)
-          .map(([seat]) => seat)
-      : [];
+        const occupiedSeats = Object.keys(showData.occupiedSeats)
 
-    res.json({ success: true, occupiedSeats: [...occupiedSeats, ...locked] });
-  } catch (error) {
-    console.error(error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
+        res.json({success: true, occupiedSeats})
 
-// User Bookings
+    } catch (error) {
+        console.log(error.message);
+        res.json({success: false, message: error.message})
+    }
+}
+
 export const userBookings = async (req, res) => {
   try {
-    const { userId } = req;
+    // FIX: Get userId from req.userId
+    const { userId } = req; 
+
+    // Fetch and populate nested data
     const bookings = await Booking.find({ user: userId })
-      .populate({ path: "show", populate: { path: "movie" } });
+      .populate({
+        path: 'show',
+        populate: { path: 'movie' }
+      });
 
     res.json({ success: true, bookings });
   } catch (error) {
-    console.error(error.message);
+    console.log(error.message);
     res.json({ success: false, message: error.message });
   }
-};
+}
