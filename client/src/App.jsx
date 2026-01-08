@@ -12,6 +12,7 @@ import MyBookings from "./pages/MyBookings";
 import Favorite from "./pages/Favorite";
 import Login from "./pages/Login"; 
 import Profile from "./pages/Profile";
+import BookingSummary from "./pages/BookingSummary"; // Added for New Payment Gateway
 
 // Admin
 import Layout from "./pages/admin/Layout";
@@ -45,6 +46,8 @@ const App = () => {
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/my-bookings" element={user ? <MyBookings /> : <Navigate to="/login" />} />
         
+        {/* New Route for Payment Gateway / Booking Details */}
+        <Route path="/booking-summary/:bookingId" element={user ? <BookingSummary /> : <Navigate to="/login" />} />
 
         <Route path="/favorite" element={user ? <Favorite /> : <Navigate to="/login" />} />
 

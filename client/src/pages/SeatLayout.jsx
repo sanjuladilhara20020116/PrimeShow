@@ -104,7 +104,9 @@ const SeatLayout = () => {
       );
 
       if (data.success) {
-        window.location.href = data.url;
+       // Navigate to your new summary page instead of external Stripe URL
+      navigate(`/booking-summary/${data.bookingId}`);
+
       } else {
         toast.error(data.message);
       }

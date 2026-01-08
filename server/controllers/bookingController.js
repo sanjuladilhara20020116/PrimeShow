@@ -1,22 +1,19 @@
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
-import Stripe from "stripe";
+import { sendBookingEmail } from "../utils/emailService.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// CHECK SEAT AVAILABILITY
+// Helper: Check seat availability
 const checkSeatAvailability = async (showId, selectedSeats) => {
   const show = await Show.findById(showId);
   if (!show) return false;
   return !selectedSeats.some(seat => show.occupiedSeats[seat]);
 };
 
-// CREATE BOOKING
+// CREATE BOOKING (Returns bookingId for frontend redirection)
 export const createBooking = async (req, res) => {
   try {
     const userId = req.headers["x-user-id"];
     const { showId, selectedSeats } = req.body;
-    const { origin } = req.headers;
 
     if (!userId || !showId || !selectedSeats?.length) {
       return res.json({ success: false, message: "Invalid booking data" });
@@ -24,7 +21,7 @@ export const createBooking = async (req, res) => {
 
     const available = await checkSeatAvailability(showId, selectedSeats);
     if (!available) {
-      return res.json({ success: false, message: "Seats not available" });
+      return res.json({ success: false, message: "Seats no longer available" });
     }
 
     const show = await Show.findById(showId).populate("movie");
@@ -37,7 +34,7 @@ export const createBooking = async (req, res) => {
       isPaid: false
     });
 
-    // lock seats
+    // Lock seats temporarily (unpaid)
     selectedSeats.forEach(seat => {
       show.occupiedSeats[seat] = { user: userId, isPaid: false };
     });
@@ -45,45 +42,82 @@ export const createBooking = async (req, res) => {
     show.markModified("occupiedSeats");
     await show.save();
 
-    // STRIPE CHECKOUT
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      success_url: `${origin}/my-bookings`,
-      cancel_url: `${origin}/my-bookings`,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: show.movie.title },
-            unit_amount: booking.amount * 100
-          },
-          quantity: 1
-        }
-      ],
-      metadata: { bookingId: booking._id.toString() },
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60
-    });
-
-    booking.paymentLink = session.url;
-    await booking.save();
-
-    res.json({ success: true, url: session.url });
+    res.json({ success: true, bookingId: booking._id });
   } catch (err) {
     res.json({ success: false, message: err.message });
   }
 };
 
-// GET OCCUPIED SEATS
-export const getOccupiedSeats = async (req, res) => {
-  const show = await Show.findById(req.params.showId);
-  res.json({ success: true, occupiedSeats: Object.keys(show.occupiedSeats) });
+// GET SINGLE BOOKING DETAILS (For Summary/Invoice Page)
+export const getBookingDetails = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await Booking.findById(bookingId).populate({
+      path: "show",
+      populate: { path: "movie" },
+    });
+    if (!booking) return res.json({ success: false, message: "Booking not found" });
+    res.json({ success: true, booking });
+  } catch (err) {
+    res.json({ success: false, message: err.message });
+  }
 };
 
-// USER BOOKINGS
+// CONFIRM PAYMENT & SEND EMAIL
+export const confirmPayment = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+
+    // 1. Find and populate booking details (IMPORTANT: populate 'user' for email)
+    const booking = await Booking.findById(bookingId)
+      .populate({ path: 'show', populate: { path: 'movie' } })
+      .populate('user'); 
+
+    if (!booking) {
+      return res.json({ success: false, message: "Booking not found" });
+    }
+
+    // 2. Update Payment Status
+    booking.isPaid = true;
+    await booking.save();
+
+    // 3. Update Show seats to isPaid: true
+    const show = await Show.findById(booking.show._id);
+    booking.bookedSeats.forEach(seat => {
+      if (show.occupiedSeats[seat]) {
+        show.occupiedSeats[seat].isPaid = true;
+      }
+    });
+    show.markModified("occupiedSeats");
+    await show.save();
+
+    // 4. Send Email (Wait for this to complete)
+    try {
+      await sendBookingEmail(booking);
+      console.log("Email sent successfully to:", booking.user.email);
+    } catch (emailErr) {
+      console.error("Email failed but payment succeeded:", emailErr.message);
+      // We don't return error here so user still sees the success UI
+    }
+
+    // 5. Send success response with updated booking data
+    res.json({ success: true, message: "Payment successful", booking });
+  } catch (err) {
+    console.error("Payment confirmation error:", err);
+    res.json({ success: false, message: err.message });
+  }
+};
+
+export const getOccupiedSeats = async (req, res) => {
+  const show = await Show.findById(req.params.showId);
+  res.json({ success: true, occupiedSeats: Object.keys(show.occupiedSeats || {}) });
+};
+
 export const userBookings = async (req, res) => {
   const userId = req.headers["x-user-id"];
   const bookings = await Booking.find({ user: userId })
-    .populate({ path: "show", populate: { path: "movie" } });
+    .populate({ path: "show", populate: { path: "movie" } })
+    .sort({ createdAt: -1 });
 
   res.json({ success: true, bookings });
 };
