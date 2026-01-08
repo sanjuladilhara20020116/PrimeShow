@@ -176,4 +176,4 @@ app.listen(port, () => {
 // Run every 60 seconds
 setInterval(() => {
   releaseUnpaidBookings();
-}, 60 * 1000);
+}, 10 * 1000);

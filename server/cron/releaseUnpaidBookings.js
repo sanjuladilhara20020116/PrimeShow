@@ -5,12 +5,11 @@ export const releaseUnpaidBookings = async () => {
   try {
     console.log("Running unpaid booking cleanup...");
 
-    const twoMinutesAgo = new Date(Date.now() - 1 * 60 * 1000);
+    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
 
-    // Find all unpaid bookings older than 2 minutes
     const unpaidBookings = await Booking.find({
       isPaid: false,
-      createdAt: { $lte: twoMinutesAgo }
+      createdAt: { $lte: oneMinuteAgo }
     });
 
     for (const booking of unpaidBookings) {
@@ -33,10 +32,9 @@ export const releaseUnpaidBookings = async () => {
         console.log(`Released unpaid seats [${releasedSeats}] for booking ${booking._id}`);
       }
 
-      // Delete booking if all seats were unpaid
+      // ✅ only delete unpaid bookings
       await Booking.findByIdAndDelete(booking._id);
     }
-
   } catch (err) {
     console.error("Error in releasing unpaid bookings:", err.message);
   }
