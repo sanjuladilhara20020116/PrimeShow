@@ -1,4 +1,3 @@
-// Booking.js
 import mongoose from 'mongoose';
 
 const bookingSchema = new mongoose.Schema({
@@ -6,8 +5,6 @@ const bookingSchema = new mongoose.Schema({
   show: { type: mongoose.Schema.Types.ObjectId, ref: 'Show', required: true },
   amount: { type: Number, required: true },
   bookedSeats: [{ type: String }],
-  paymentLink: { type: String },
-  stripePaymentId: { type: String }, // store stripe paymentIntent ID
   isPaid: { type: Boolean, default: false },
 }, { timestamps: true });
 
