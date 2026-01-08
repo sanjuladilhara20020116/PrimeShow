@@ -84,35 +84,33 @@ const SeatLayout = () => {
     }
   };
 
-  const bookTickets = async () => {
-    try {
-      if (!user) return toast.error("Please login to proceed");
-      if (!selectedTime || !selectedSeats.length) return toast.error("Please select a time and seats");
-      if (!selectedTime.showId) return toast.error("Invalid show selection");
+  // Inside SeatLayout.jsx -> bookTickets function
 
-      const { data } = await axios.post(
-        "/api/booking/create",
-        {
-          showId: selectedTime.showId,
-          selectedSeats
-        },
-        {
-          headers: {
-            "x-user-id": user._id // ✅ send userId in header
-          }
-        }
-      );
+const bookTickets = async () => {
+  try {
+    if (!user) return toast.error("Please login to proceed");
+    
+    const { data } = await axios.post("/api/booking/create", {
+      showId: selectedTime.showId,
+      selectedSeats,
+      userEmail: user.email // Send email for the receipt
+    }, {
+      headers: { "x-user-id": user._id }
+    });
 
-      if (data.success) {
-        window.location.href = data.url;
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error(error.message);
+    if (data.success) {
+      // Integration Note: You would typically use the 'clientSecret' here 
+      // with Stripe Elements to show a popup. 
+      // For a quick "User Friendly" redirect that is seamless:
+      toast.success("Proceeding to secure payment...");
+      window.location.href = data.url; // Use the generated payment link
+    } else {
+      toast.error(data.message);
     }
-  };
+  } catch (error) {
+    toast.error("Payment initialization failed");
+  }
+};
 
   useEffect(() => {
     getShow();
