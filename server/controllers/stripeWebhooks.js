@@ -1,53 +1,48 @@
-import stripe from "stripe";
+import Stripe from "stripe";
 import Booking from "../models/Booking.js";
 
-export const stripeWebhooks = async (request, response) => {
-    const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
-    const sig = request.headers["stripe-signature"];
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-    let event;
+export const stripeWebhooks = async (req, res) => {
+  const sig = req.headers["stripe-signature"];
 
-    try {
-        event = stripeInstance.webhooks.constructEvent(
-            request.body, 
-            sig, 
-            process.env.STRIPE_WEBHOOK_SECRET
-        )
-    } catch (error) {
-        return response.status(400).send(`Webhook Error: ${error.message}`);
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,               // MUST be raw body
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error("❌ Webhook verification failed:", err.message);
+    return res.status(400).send(err.message);
+  }
+
+  console.log("✅ Stripe Event:", event.type);
+
+  // ✅ THIS = CHECKOUT SUCCESS
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+
+    console.log("👉 Payment status:", session.payment_status);
+    console.log("👉 Booking ID:", session.metadata?.bookingId);
+
+    if (session.payment_status === "paid") {
+      const booking = await Booking.findById(session.metadata.bookingId);
+
+      if (!booking) {
+        console.error("❌ Booking not found");
+        return res.json({ received: true });
+      }
+
+      // ✅ THIS IS THE STATE CHANGE YOU WANT
+      booking.isPaid = true;
+      booking.paidAt = new Date();
+      await booking.save();
+
+      console.log("✅ BOOKING UPDATED → isPaid = true");
     }
+  }
 
-    try {
-      switch (event.type) {
-        case "payment_intent.succeeded": {
-            const paymentIntent = event.data.object;
-            const sessionList = await stripeInstance.checkout.sessions.list({
-                payment_intent: paymentIntent.id
-            })
-
-            const session = sessionList.data[0];
-            const {bookingId} = session.metadata;
-
-            await Booking.findByIdAndUpdate(bookingId, {
-              isPaid: true,
-              paymentLink: ""
-            })
-
-            break;
-
-        }
-
-        default:
-            console.log('Unhandled event type:', event.type)
-    }
-    response.json({received: true})
-} catch (err) {
-    console.error("Webhook processing error:", err);
-    response.status(500).send("Internal Server Error");
-}
-      
-    
-
-
-}
-
+  res.json({ received: true });
+};

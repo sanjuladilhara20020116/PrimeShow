@@ -1,14 +1,14 @@
-import mongoose from "mongoose";
+// Booking.js
+import mongoose from 'mongoose';
 
 const bookingSchema = new mongoose.Schema({
-  user: { type: String, required: true, ref: "User" },
-  show: { type: String, required: true, ref: "Show" },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  show: { type: mongoose.Schema.Types.ObjectId, ref: 'Show', required: true },
   amount: { type: Number, required: true },
-  bookedSeats: { type: Array, required: true },
-  isPaid: { type: Boolean, default: false },
+  bookedSeats: [{ type: String }],
   paymentLink: { type: String },
+  stripePaymentId: { type: String }, // store stripe paymentIntent ID
+  isPaid: { type: Boolean, default: false },
 }, { timestamps: true });
 
-const Booking = mongoose.model("Booking", bookingSchema);
-
-export default Booking;
+export default mongoose.model('Booking', bookingSchema);

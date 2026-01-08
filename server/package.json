@@ -21,7 +21,8 @@
     "express": "^5.2.1",
     "inngest": "^3.48.1",
     "mongoose": "^9.0.2",
-    "stripe": "^20.1.0",
+    "node-cron": "^4.2.1",
+    "stripe": "^20.1.2",
     "svix": "^1.84.1"
   },
   "devDependencies": {
