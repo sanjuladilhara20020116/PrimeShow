@@ -7,6 +7,9 @@ export const sendBookingEmail = async (booking) => {
       user: process.env.EMAIL_USER, // Your Gmail
       pass: process.env.EMAIL_PASS, // Your 16-character APP PASSWORD
     },
+    tls: {
+    rejectUnauthorized: false
+  }
   });
 
   const mailOptions = {
