@@ -1,5 +1,5 @@
+// stripeWebhooks.js
 import Booking from "../models/Booking.js";
-import { sendSuccessEmail } from "./bookingController.js"; // Export the helper
 
 export const stripeWebhooks = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -7,37 +7,25 @@ export const stripeWebhooks = async (req, res) => {
 
   let event;
   try {
-    event = stripeInstance.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripeInstance.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
   } catch (err) {
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
-  // Handle successful payment intent
-  if (event.type === "payment_intent.succeeded") {
-    const paymentIntent = event.data.object;
-    const bookingId = paymentIntent.metadata.bookingId;
-    const userEmail = paymentIntent.metadata.userEmail;
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const bookingId = session.metadata.bookingId;
 
-    const booking = await Booking.findById(bookingId).populate({
-        path: 'show',
-        populate: { path: 'movie' }
-    });
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).send("Booking not found");
 
-    if (booking) {
-      booking.isPaid = true;
-      await booking.save();
-
-      // Update seats to paid
-      const show = await Show.findById(booking.show);
-      booking.bookedSeats.forEach(seat => {
-        if (show.occupiedSeats[seat]) show.occupiedSeats[seat].isPaid = true;
-      });
-      show.markModified("occupiedSeats");
-      await show.save();
-
-      // Trigger Email
-      await sendSuccessEmail(userEmail, booking);
-    }
+    // Mark booking as paid
+    booking.isPaid = true;
+    await booking.save();
   }
 
   res.json({ received: true });

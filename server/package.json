@@ -22,7 +22,6 @@
     "inngest": "^3.48.1",
     "mongoose": "^9.0.2",
     "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.12",
     "stripe": "^20.1.0",
     "svix": "^1.84.1"
   },
