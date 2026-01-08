@@ -11,7 +11,7 @@ import bookingRouter from "./routes/bookingRoutes.js";
 import adminRouter from "./routes/adminRouter.js";
 import userRouter from "./routes/userRoutes.js";
 
-import { stripeWebhooks } from "./controllers/stripeWebhooks.js";
+
 
 // ✅ IMPORT CRON (AUTO RELEASE UNPAID BOOKINGS)
 import { releaseUnpaidBookings } from './cron/releaseUnpaidBookings.js';
@@ -24,16 +24,7 @@ const port = process.env.PORT || 3000;
 // --------------------
 await connectDB();
 
-// --------------------
-// STRIPE WEBHOOK (RAW BODY ONLY)
-// --------------------
-app.post(
-  "/api/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  stripeWebhooks
-);
 
-// --------------------
 // GLOBAL MIDDLEWARES
 // --------------------
 app.use(cors());
